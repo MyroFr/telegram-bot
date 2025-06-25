@@ -3,9 +3,7 @@ import json
 import time
 import os
 from telebot.types import ChatPermissions
-from dotenv import load_dotenv
 
-load_dotenv()
 
 print("DEBUG: BOT_TOKEN =", os.getenv("BOT_TOKEN"))
 bot_token = os.getenv("BOT_TOKEN")
