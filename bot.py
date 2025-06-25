@@ -1,10 +1,19 @@
 import telebot
 import json
+import time
 import os
 from telebot.types import ChatPermissions
+from dotenv import load_dotenv
 
-BOT_TOKEN = os.getenv('8199674703:AAFozO9y2x2J4wNhvRMsnbj634v-Drj7iwE')
-bot = telebot.TeleBot(BOT_TOKEN)
+load_dotenv()
+
+print("DEBUG: BOT_TOKEN =", os.getenv("BOT_TOKEN"))
+bot_token = os.getenv("BOT_TOKEN")
+if not bot_token:
+    raise Exception("BOT_TOKEN environment variable not set")
+    
+
+bot = telebot.TeleBot(bot_token)
 
 OWNER_PASSWORD = 'e7uoe6aA3'
 ADMIN_PASSWORD = 'qwertpoiuy'
@@ -122,76 +131,87 @@ def cmd_unadmin(message):
     remove_admin(target)
     bot.reply_to(message, f"✅ @{target} is no longer an admin.")
 
+from telebot.types import ChatPermissions
+
 @bot.message_handler(commands=['mute'])
-def cmd_mute(message):
-    args = message.text.split()
-    if len(args) < 3:
-        bot.reply_to(message, "Usage: /mute @user admin-password [reason]")
-        return
-
-    target = args[1].lstrip('@')
-    password = args[2]
-    reason = " ".join(args[3:]) if len(args) > 3 else "No reason provided"
-    sender = message.from_user.username or ""
-
-    if not is_admin(sender):
-        bot.reply_to(message, "❌ Only admins or owners can mute.")
-        return
-
-    if password != ADMIN_PASSWORD:
-        bot.reply_to(message, "Invalid admin password.")
-        return
-
-    if is_admin(target):
-        bot.reply_to(message, "❌ You can't mute an admin or owner.")
-        return
-
-    mute_user(target)
+def mute_user(message):
     try:
-        user = bot.get_chat_member(message.chat.id, message.reply_to_message.from_user.id).user
-        bot.restrict_chat_member(
-            chat_id=message.chat.id,
-            user_id=user.id,
-            permissions=ChatPermissions(can_send_messages=False)
+        args = message.text.split()
+        if not message.reply_to_message:
+            bot.reply_to(message, "Please reply to the user's message you want to mute.")
+            return
+
+        if len(args) < 2:
+            bot.reply_to(message, "Usage: Reply to a user and use /mute [admin-password] [optional reason]")
+            return
+
+        admin_password = args[1]
+        reason = " ".join(args[2:]) if len(args) > 2 else "No reason provided"
+
+        if admin_password != "qwertpoiuy":
+            bot.reply_to(message, "❌ Incorrect admin password.")
+            return
+
+        user_to_mute = message.reply_to_message.from_user
+        chat_id = message.chat.id
+
+        permissions = ChatPermissions(
+            can_send_messages=False,
+            can_send_media_messages=False,
+            can_send_polls=False,
+            can_send_other_messages=False,
+            can_add_web_page_previews=False,
+            can_change_info=False,
+            can_invite_users=False,
+            can_pin_messages=False
         )
-    except:
-        pass
-    bot.reply_to(message, f"🔇 @{target} has been muted.\nReason: {reason}")
+
+        bot.restrict_chat_member(chat_id, user_to_mute.id, permissions)
+        bot.reply_to(message, f"✅ Muted {user_to_mute.first_name}. Reason: {reason}")
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error: {e}")
+
+
+from telebot.types import ChatPermissions
 
 @bot.message_handler(commands=['unmute'])
-def cmd_unmute(message):
-    args = message.text.split()
-    if len(args) < 3:
-        bot.reply_to(message, "Usage: /unmute @user admin-password")
-        return
-
-    target = args[1].lstrip('@')
-    password = args[2]
-    sender = message.from_user.username or ""
-
-    if not is_admin(sender):
-        bot.reply_to(message, "❌ Only admins or owners can unmute.")
-        return
-
-    if password != ADMIN_PASSWORD:
-        bot.reply_to(message, "Invalid admin password.")
-        return
-
-    if not is_muted(target):
-        bot.reply_to(message, f"@{target} is not muted.")
-        return
-
-    unmute_user(target)
+def unmute_user(message):
     try:
-        user = bot.get_chat_member(message.chat.id, message.reply_to_message.from_user.id).user
-        bot.restrict_chat_member(
-            chat_id=message.chat.id,
-            user_id=user.id,
-            permissions=ChatPermissions(can_send_messages=True)
+        args = message.text.split()
+        if not message.reply_to_message:
+            bot.reply_to(message, "Please reply to the muted user's message.")
+            return
+
+        if len(args) < 2:
+            bot.reply_to(message, "Usage: Reply to the user and use /unmute [admin-password]")
+            return
+
+        admin_password = args[1]
+
+        if admin_password != "qwertpoiuy":
+            bot.reply_to(message, "❌ Incorrect admin password.")
+            return
+
+        user_to_unmute = message.reply_to_message.from_user
+        chat_id = message.chat.id
+
+        permissions = ChatPermissions(
+            can_send_messages=True,
+            can_send_media_messages=True,
+            can_send_polls=True,
+            can_send_other_messages=True,
+            can_add_web_page_previews=True,
+            can_change_info=False,
+            can_invite_users=True,
+            can_pin_messages=False
         )
-    except:
-        pass
-    bot.reply_to(message, f"✅ @{target} has been unmuted.")
+
+        bot.restrict_chat_member(chat_id, user_to_unmute.id, permissions)
+        bot.reply_to(message, f"✅ Unmuted {user_to_unmute.first_name}.")
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error: {e}")
 
 # Catch-all
 @bot.message_handler(func=lambda message: message.text.startswith('/'))
