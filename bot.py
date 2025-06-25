@@ -16,6 +16,19 @@ OWNER_PASSWORD = 'e7uoe6aA3'
 ADMIN_PASSWORD = 'qwertpoiuy'
 DATA_FILE = 'data.json'
 
+@app.before_first_request
+def setup_webhook():
+    bot.remove_webhook()
+    bot.set_webhook(url=os.getenv("WEBHOOK_URL"))
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return '', 200
+
+
 # ========== Persistent Storage ==========
 def load_data():
     if not os.path.exists(DATA_FILE):
